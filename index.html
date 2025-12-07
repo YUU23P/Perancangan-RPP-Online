@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sman1Padang - Perangkat Ajar Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1e3a8a', // Biru SMA
+                        accent: '#3b82f6',
+                        gold: '#f59e0b',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        
+        body { font-family: 'Inter', sans-serif; background: #f3f4f6; }
+        
+        /* Modal Transitions */
+        .modal { transition: opacity 0.25s ease; }
+        body.modal-active { overflow: hidden; }
+
+        /* =========================================
+           PREVIEW & PDF STYLING (A4 PAPER LOOK)
+           ========================================= */
+        #preview-container {
+            background-color: #525659; /* Dark grey background like PDF viewers */
+            padding: 40px 0;
+            overflow-y: auto;
+            height: calc(100vh - 80px); /* Adjust based on header */
+        }
+
+        .pdf-page {
+            width: 210mm;
+            min-height: 297mm;
+            background: white;
+            padding: 2.5cm; /* Margin Standar Dinas */
+            margin: 0 auto 30px auto; /* Center & Gap between pages */
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            font-family: 'Times New Roman', serif;
+            color: black;
+            line-height: 1.5;
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        /* Page Break Helper */
+        .page-break { page-break-before: always; }
+
+        /* KOP SURAT */
+        .kop-surat {
+            border-bottom: 3px double black;
+            padding-bottom: 10px;
+            margin-bottom: 25px;
+            text-align: center;
+            line-height: 1.2;
+        }
+        .kop-surat h3 { margin: 0; font-size: 14pt; font-weight: bold; text-transform: uppercase; }
+        .kop-surat h2 { margin: 0; font-size: 16pt; font-weight: bold; text-transform: uppercase; }
+        .kop-surat p { margin: 0; font-size: 10pt; font-style: italic; }
+
+        /* TABLE STYLES */
+        .table-rpp { width: 100%; border-collapse: collapse; font-size: 11pt; margin-bottom: 15px; }
+        .table-rpp th, .table-rpp td { border: 1px solid black; padding: 4px 6px; vertical-align: top; text-align: left; }
+        .table-rpp th { background-color: #e5e7eb; text-align: center; font-weight: bold; }
+        .no-border td { border: none !important; padding: 2px 0; }
+
+        /* COVER STYLE */
+        .cover-wrapper {
+            border: 5px double #000;
+            height: 100%; /* Fill A4 */
+            min-height: 240mm;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col md:flex-row overflow-hidden">
+
+    <aside class="w-full md:w-72 bg-primary text-white flex flex-col shadow-2xl z-20">
+        <div class="p-6 border-b border-blue-800 flex items-center gap-3">
+            <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center text-primary font-bold text-xl">
+                <i class="fas fa-file-signature"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg tracking-wide">PlanMaster</h1>
+                <p class="text-xs text-blue-300">SMA N 1 Padang</p>
+            </div>
+        </div>
+        
+        <div class="p-4 flex-1 overflow-y-auto">
+            <nav class="space-y-1 mb-6">
+                <button onclick="switchPage('identitas')" class="nav-btn w-full text-left px-4 py-3 rounded-lg hover:bg-white/10 flex items-center gap-3 transition bg-blue-800/50">
+                    <i class="fas fa-school w-5"></i> Identitas Semester
+                </button>
+                <button onclick="switchPage('timeline')" class="nav-btn w-full text-left px-4 py-3 rounded-lg hover:bg-white/10 flex items-center gap-3 transition">
+                    <i class="fas fa-list-ol w-5"></i> Pertemuan (1-16)
+                </button>
+            </nav>
+
+            <div class="bg-gradient-to-br from-blue-700 to-blue-900 rounded-xl p-4 shadow-lg border border-blue-500">
+                <h3 class="font-bold text-sm mb-2 text-gold"><i class="fas fa-eye mr-2"></i>Review & Download</h3>
+                <p class="text-xs text-blue-100 mb-4 leading-relaxed">
+                    Lihat tampilan dokumen sebelum diunduh untuk memastikan kerapian.
+                </p>
+                <button onclick="showPreview()" class="w-full py-2 bg-gold hover:bg-yellow-500 text-primary font-bold rounded shadow-md transition transform hover:scale-105 text-sm flex justify-center items-center gap-2">
+                    <i class="fas fa-search"></i> Pratinjau PDF
+                </button>
+            </div>
+            
+            <button onclick="resetAll()" class="mt-6 w-full text-left px-4 py-2 text-xs text-red-300 hover:text-white flex items-center gap-2">
+                <i class="fas fa-trash"></i> Reset Data
+            </button>
+        </div>
+    </aside>
+
+    <main class="flex-1 overflow-y-auto relative bg-gray-100">
+        <header class="bg-white px-8 py-5 shadow-sm sticky top-0 z-10 flex justify-between items-center border-b">
+            <div>
+                <h2 id="page-title" class="text-2xl font-bold text-gray-800">Identitas Semester</h2>
+            </div>
+        </header>
+
+        <div class="p-6 md:p-10 max-w-6xl mx-auto">
+            <div id="page-identitas" class="page-content animate-fade-in">
+                <div class="bg-white p-8 rounded-xl shadow-sm border border-gray-200">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div class="space-y-4">
+                            <h3 class="font-bold text-primary border-b pb-2 mb-4">Data Guru & Kepala Sekolah</h3>
+                            <div><label class="label-text">Nama Guru</label><input type="text" id="g_guru" class="input-field" placeholder="Nama Lengkap & Gelar"></div>
+                            <div><label class="label-text">NIP Guru</label><input type="text" id="g_nip" class="input-field" placeholder="NIP"></div>
+                            <div class="pt-2"><label class="label-text">Nama Kepala Sekolah</label><input type="text" id="g_kepsek" class="input-field" placeholder="Nama Kepala Sekolah"></div>
+                            <div><label class="label-text">NIP Kepala Sekolah</label><input type="text" id="g_nip_kepsek" class="input-field" placeholder="NIP Kepala Sekolah"></div>
+                        </div>
+                        <div class="space-y-4">
+                            <h3 class="font-bold text-primary border-b pb-2 mb-4">Data Akademik</h3>
+                            <div><label class="label-text">Mata Pelajaran</label><input type="text" id="g_mapel" class="input-field" placeholder="Contoh: Matematika"></div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div><label class="label-text">Kelas / Fase</label><input type="text" id="g_kelas" class="input-field" placeholder="X / E"></div>
+                                <div><label class="label-text">Semester</label><select id="g_semester" class="input-field bg-white"><option>Ganjil</option><option>Genap</option></select></div>
+                            </div>
+                            <div><label class="label-text">Tahun Pelajaran</label><input type="text" id="g_tahun" class="input-field" value="2024/2025"></div>
+                            <div><label class="label-text">Tempat & Tanggal TTD</label><input type="text" id="g_tanggal" class="input-field" placeholder="Padang, Juli 2024"></div>
+                        </div>
+                    </div>
+                    <div class="mt-8 flex justify-end">
+                        <button onclick="saveGlobalInfo(); switchPage('timeline')" class="bg-primary text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-800 transition shadow-lg flex items-center gap-2">Simpan & Lanjut <i class="fas fa-arrow-right"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="page-timeline" class="page-content hidden">
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6 flex flex-wrap gap-4 justify-between items-center">
+                    <div class="text-sm text-gray-600"><i class="fas fa-info-circle text-blue-500"></i> Klik kartu untuk edit RPP.</div>
+                    <div class="flex gap-2">
+                        <button onclick="initTemplate()" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 font-medium transition"><i class="fas fa-magic text-gold mr-2"></i> Isi Otomatis (1-16)</button>
+                        <button onclick="addMeeting()" class="bg-primary text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-800 font-medium shadow transition"><i class="fas fa-plus mr-2"></i> Tambah</button>
+                    </div>
+                </div>
+                <div id="timeline-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+            </div>
+        </div>
+    </main>
+
+    <div id="modal-editor" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-50">
+        <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-70 backdrop-blur-sm"></div>
+        <div class="modal-container bg-white w-full h-full md:w-11/12 md:h-[90vh] md:rounded-xl shadow-2xl z-50 flex flex-col overflow-hidden transform transition-all scale-95">
+            <div class="bg-primary text-white px-6 py-4 flex justify-between items-center shadow-md">
+                <h3 class="text-xl font-bold">Edit Detail RPP</h3>
+                <div class="flex gap-3">
+                    <button onclick="closeModal('modal-editor')" class="text-white hover:bg-white/20 px-4 py-2 rounded transition">Tutup</button>
+                    <button onclick="saveMeetingData()" class="bg-gold text-blue-900 px-6 py-2 rounded font-bold hover:bg-yellow-400 shadow-lg transition">Simpan</button>
+                </div>
+            </div>
+            <div class="flex-1 overflow-y-auto p-6 bg-gray-50">
+                <input type="hidden" id="m_id"> 
+                <div class="max-w-5xl mx-auto space-y-6">
+                    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 grid grid-cols-1 md:grid-cols-12 gap-4">
+                        <div class="md:col-span-2"><label class="label-text">Pertemuan</label><input type="number" id="m_ke" class="input-field text-center font-bold"></div>
+                        <div class="md:col-span-3"><label class="label-text">Waktu</label><input type="text" id="m_waktu" class="input-field" value="2 x 45 Menit"></div>
+                        <div class="md:col-span-7"><label class="label-text">Topik / Materi</label><input type="text" id="m_topik" class="input-field font-semibold"></div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200"><label class="label-text">A. Tujuan Pembelajaran</label><textarea id="m_tp" rows="4" class="input-field"></textarea></div>
+                    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                        <h4 class="text-primary font-bold border-b pb-2 mb-4">B. Kegiatan Pembelajaran</h4>
+                        <div class="space-y-3">
+                            <div><label class="label-text bg-blue-50 p-1 block">1. Pendahuluan</label><textarea id="m_pendahuluan" rows="3" class="input-field"></textarea></div>
+                            <div><label class="label-text bg-blue-50 p-1 block">2. Kegiatan Inti</label><textarea id="m_inti" rows="6" class="input-field"></textarea></div>
+                            <div><label class="label-text bg-blue-50 p-1 block">3. Penutup</label><textarea id="m_penutup" rows="3" class="input-field"></textarea></div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div><label class="label-text">C. Penilaian</label><textarea id="m_asesmen" rows="4" class="input-field"></textarea></div>
+                        <div class="space-y-3">
+                             <div><label class="label-text">Media/Alat</label><textarea id="m_media" rows="2" class="input-field"></textarea></div>
+                             <div><label class="label-text">Sumber Belajar</label><textarea id="m_sumber" rows="2" class="input-field"></textarea></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-preview" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-50">
+        <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-90 backdrop-blur-sm"></div>
+        
+        <div class="modal-container w-full h-full flex flex-col z-50">
+            <div class="bg-gray-800 text-white px-6 py-4 flex justify-between items-center shadow-lg z-50">
+                <div class="flex items-center gap-4">
+                    <h3 class="text-lg font-bold">Pratinjau Dokumen</h3>
+                    <span class="text-xs bg-gray-700 px-2 py-1 rounded">A4 Portrait</span>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="closeModal('modal-preview')" class="text-gray-300 hover:text-white px-4 py-2">Tutup</button>
+                    <button onclick="downloadPDF()" class="bg-blue-600 text-white px-6 py-2 rounded font-bold hover:bg-blue-500 shadow-lg flex items-center gap-2">
+                        <i class="fas fa-download"></i> Download PDF
+                    </button>
+                </div>
+            </div>
+
+            <div id="preview-container" class="flex-1 w-full flex flex-col items-center">
+                <div id="content-to-print"></div> 
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .input-field { width: 100%; border: 1px solid #d1d5db; border-radius: 0.5rem; padding: 0.75rem; outline: none; transition: 0.2s; font-size: 0.95rem; }
+        .input-field:focus { border-color: #1e3a8a; box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1); }
+        .label-text { display: block; font-size: 0.85rem; font-weight: 600; color: #4b5563; margin-bottom: 0.35rem; }
+    </style>
+
+    <script>
+        let appData = {
+            info: { guru: '', nip: '', kepsek: '', nip_kepsek: '', mapel: '', kelas: '', semester: 'Ganjil', tahun: '2024/2025', tanggal: '' },
+            meetings: [] 
+        };
+
+        document.addEventListener('DOMContentLoaded', () => { loadFromStorage(); renderTimeline(); });
+
+        function switchPage(pageId) {
+            document.querySelectorAll('.page-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById('page-' + pageId).classList.remove('hidden');
+            document.getElementById('page-title').innerText = pageId === 'identitas' ? 'Identitas Semester' : 'Daftar Pertemuan';
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('bg-blue-800/50'));
+            if(event.currentTarget.classList.contains('nav-btn')) event.currentTarget.classList.add('bg-blue-800/50');
+        }
+
+        /* --- DATA LOGIC --- */
+        function saveGlobalInfo() {
+            appData.info = {
+                guru: document.getElementById('g_guru').value, nip: document.getElementById('g_nip').value,
+                kepsek: document.getElementById('g_kepsek').value, nip_kepsek: document.getElementById('g_nip_kepsek').value,
+                mapel: document.getElementById('g_mapel').value, kelas: document.getElementById('g_kelas').value,
+                semester: document.getElementById('g_semester').value, tahun: document.getElementById('g_tahun').value,
+                tanggal: document.getElementById('g_tanggal').value,
+            };
+            saveToStorage();
+            Swal.fire({ icon: 'success', title: 'Tersimpan', timer: 1000, showConfirmButton: false });
+        }
+
+        function initTemplate() {
+            if(appData.meetings.length > 0 && !confirm("Data lama akan ditimpa. Lanjutkan?")) return;
+            appData.meetings = [];
+            for (let i = 1; i <= 16; i++) {
+                let type = (i === 8) ? "uts" : (i === 16) ? "uas" : "materi";
+                let topic = (i === 8) ? "PENILAIAN TENGAH SEMESTER (PTS)" : (i === 16) ? "PENILAIAN AKHIR SEMESTER (PAS)" : `Materi Pertemuan ${i}`;
+                appData.meetings.push({
+                    id: Date.now() + i, ke: i, type: type, topik: topic, waktu: "2 x 45 Menit",
+                    tp: "", media: "", sumber: "", pendahuluan: "1. Pendahuluan...", inti: "1. Kegiatan Inti...", penutup: "1. Penutup...", asesmen: "Sikap & Pengetahuan"
+                });
+            }
+            saveToStorage(); renderTimeline();
+        }
+
+        function renderTimeline() {
+            const container = document.getElementById('timeline-container');
+            container.innerHTML = '';
+            appData.meetings.sort((a,b) => a.ke - b.ke).forEach(m => {
+                let style = (m.type === 'uts' || m.type === 'uas') ? "border-l-4 border-gold bg-yellow-50" : "border-l-4 border-primary bg-white";
+                container.insertAdjacentHTML('beforeend', `
+                <div onclick="openEditor(${m.id})" class="${style} rounded-xl shadow-sm hover:shadow-lg transition p-5 cursor-pointer">
+                    <div class="flex justify-between items-center mb-2"><span class="font-bold text-xs uppercase text-gray-500">Pertemuan ${m.ke}</span><i class="fas fa-edit text-gray-400"></i></div>
+                    <h4 class="font-bold text-gray-800 line-clamp-2">${m.topik}</h4>
+                </div>`);
+            });
+        }
+
+        function addMeeting() {
+            appData.meetings.push({ id: Date.now(), ke: appData.meetings.length + 1, type: 'materi', topik: 'Topik Baru', waktu: "2 x 45 Menit", tp:"", pendahuluan:"", inti:"", penutup:"", asesmen:"", media:"", sumber:"" });
+            saveToStorage(); renderTimeline();
+        }
+
+        /* --- MODAL LOGIC --- */
+        function openEditor(id) {
+            const m = appData.meetings.find(x => x.id === id);
+            if(!m) return;
+            // Fill form
+            ['m_id','m_ke','m_topik','m_waktu','m_tp','m_pendahuluan','m_inti','m_penutup','m_asesmen','m_media','m_sumber'].forEach(k => {
+                 let field = document.getElementById(k);
+                 if(field) field.value = m[k.replace('m_', '')] || '';
+            });
+            document.getElementById('m_id').value = m.id; // Force ID mapping
+            toggleModal('modal-editor', true);
+        }
+
+        function saveMeetingData() {
+            const id = parseInt(document.getElementById('m_id').value);
+            const idx = appData.meetings.findIndex(x => x.id === id);
+            if (idx !== -1) {
+                ['ke','topik','waktu','tp','pendahuluan','inti','penutup','asesmen','media','sumber'].forEach(k => {
+                    appData.meetings[idx][k] = document.getElementById('m_'+k).value;
+                });
+                saveToStorage(); renderTimeline(); toggleModal('modal-editor', false);
+            }
+        }
+
+        function toggleModal(id, show) {
+            const el = document.getElementById(id);
+            const content = el.querySelector('.modal-container');
+            if(show) {
+                el.classList.remove('opacity-0', 'pointer-events-none');
+                content.classList.remove('scale-95'); content.classList.add('scale-100');
+                document.body.classList.add('modal-active');
+            } else {
+                el.classList.add('opacity-0', 'pointer-events-none');
+                content.classList.add('scale-95'); content.classList.remove('scale-100');
+                document.body.classList.remove('modal-active');
+            }
+        }
+        function closeModal(id) { toggleModal(id, false); }
+
+        function saveToStorage() { localStorage.setItem('sman1_data', JSON.stringify(appData)); }
+        function loadFromStorage() {
+            const data = localStorage.getItem('sman1_data');
+            if(data) { appData = JSON.parse(data); 
+                ['g_guru','g_nip','g_kepsek','g_nip_kepsek','g_mapel','g_kelas','g_semester','g_tahun','g_tanggal'].forEach(k => {
+                    document.getElementById(k).value = appData.info[k.replace('g_','')] || '';
+                });
+            }
+        }
+        function resetAll() { if(confirm("Reset Data?")) { localStorage.removeItem('sman1_data'); location.reload(); } }
+
+        /* --- PREVIEW & DOWNLOAD LOGIC --- */
+        function showPreview() {
+            const container = document.getElementById('content-to-print');
+            container.innerHTML = ''; // Clear previous
+            const info = appData.info;
+
+            // 1. Generate Cover
+            container.insertAdjacentHTML('beforeend', `
+                <div class="pdf-page">
+                    <div class="cover-wrapper">
+                        <br><br>
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/9/9c/Logo_Sumbar.png" style="width: 100px; margin-bottom: 20px;">
+                        <h1 style="font-size: 24pt; font-weight: bold;">PERANGKAT AJAR</h1>
+                        <h2 style="font-size: 18pt; font-weight: bold; margin-bottom: 40px;">KURIKULUM MERDEKA</h2>
+                        
+                        <div style="background-color: #f3f4f6; width: 100%; padding: 30px; border-top: 2px solid black; border-bottom: 2px solid black; margin: 30px 0;">
+                            <h2 style="font-size: 22pt; font-weight: bold; text-transform: uppercase;">${info.mapel || 'MATA PELAJARAN'}</h2>
+                        </div>
+
+                        <div style="font-size: 14pt; margin-top: 30px; font-weight: bold;">
+                            <p>KELAS: ${info.kelas}</p>
+                            <p>SEMESTER: ${info.semester.toUpperCase()}</p>
+                            <p>TAHUN PELAJARAN: ${info.tahun}</p>
+                        </div>
+
+                        <div style="margin-top: auto; margin-bottom: 40px;">
+                            <p style="font-size: 12pt;">Disusun Oleh:</p>
+                            <h3 style="font-size: 16pt; font-weight: bold; text-decoration: underline;">${info.guru}</h3>
+                            <p style="font-size: 12pt;">NIP. ${info.nip}</p>
+                        </div>
+
+                        <h3 style="font-size: 18pt; font-weight: bold;">SMA NEGERI 1 PADANG</h3>
+                        <p style="font-size: 12pt;">${new Date().getFullYear()}</p>
+                    </div>
+                </div>
+            `);
+
+            // 2. Generate RPPs
+            appData.meetings.forEach(m => {
+                if(m.type === 'uts' || m.type === 'uas') return;
+
+                // Format text with line breaks
+                const fmt = (txt) => txt ? txt.replace(/\n/g, '<br>') : '-';
+
+                container.insertAdjacentHTML('beforeend', `
+                <div class="pdf-page page-break">
+                    <div class="kop-surat">
+                         <h3>PEMERINTAH PROVINSI SUMATERA BARAT</h3>
+                         <h3>DINAS PENDIDIKAN</h3>
+                         <h2>SMA NEGERI 1 PADANG</h2>
+                         <p>Jl. Belanti Raya No. 11, Lolong Belanti, Kec. Padang Utara, Kota Padang</p>
+                    </div>
+
+                    <h3 style="text-align: center; font-weight: bold; text-decoration: underline; margin-bottom: 15px;">RENCANA PELAKSANAAN PEMBELAJARAN (RPP)</h3>
+
+                    <table class="table-rpp no-border" style="border: none;">
+                        <tr><td style="width: 20%;">Mata Pelajaran</td><td style="width: 2%;">:</td><td style="width: 40%;">${info.mapel}</td> <td style="width: 15%;">Pertemuan Ke</td><td style="width: 2%;">:</td><td>${m.ke}</td></tr>
+                        <tr><td>Kelas / Semester</td><td>:</td><td>${info.kelas} / ${info.semester}</td> <td>Alokasi Waktu</td><td>:</td><td>${m.waktu}</td></tr>
+                        <tr><td>Materi Pokok</td><td>:</td><td colspan="4">${m.topik}</td></tr>
+                    </table>
+
+                    <div style="margin-bottom: 10px;">
+                        <span style="font-weight: bold;">A. TUJUAN PEMBELAJARAN</span>
+                        <div style="padding-left: 15px; text-align: justify;">${fmt(m.tp)}</div>
+                    </div>
+
+                    <div style="margin-bottom: 10px;">
+                        <span style="font-weight: bold;">B. KEGIATAN PEMBELAJARAN</span>
+                        <table class="table-rpp" style="margin-top: 5px;">
+                            <tr><th style="width: 20%;">Kegiatan</th><th>Deskripsi Kegiatan</th></tr>
+                            <tr><td style="font-weight: bold; text-align: center;">Pendahuluan</td><td>${fmt(m.pendahuluan)}</td></tr>
+                            <tr><td style="font-weight: bold; text-align: center;">Inti</td><td>${fmt(m.inti)}</td></tr>
+                            <tr><td style="font-weight: bold; text-align: center;">Penutup</td><td>${fmt(m.penutup)}</td></tr>
+                        </table>
+                    </div>
+
+                    <div style="margin-bottom: 10px;">
+                        <span style="font-weight: bold;">C. PENILAIAN (ASESMEN)</span>
+                        <div style="padding-left: 15px; border: 1px solid black; padding: 5px;">${fmt(m.asesmen)}</div>
+                    </div>
+                     
+                    <div style="margin-bottom: 10px;">
+                        <span style="font-weight: bold;">D. MEDIA & SUMBER BELAJAR</span>
+                        <div style="padding-left: 15px;">Media: ${fmt(m.media)}<br>Sumber: ${fmt(m.sumber)}</div>
+                    </div>
+
+                    <br>
+                    <table style="width: 100%; border: none; margin-top: 20px;">
+                        <tr>
+                            <td style="border: none; width: 35%; text-align: center;">
+                                Mengetahui,<br>Kepala Sekolah<br><br><br><br>
+                                <u style="font-weight: bold;">${info.kepsek}</u><br>NIP. ${info.nip_kepsek}
+                            </td>
+                            <td style="border: none; width: 30%;"></td>
+                            <td style="border: none; width: 35%; text-align: center;">
+                                ${info.tanggal}<br>Guru Mata Pelajaran<br><br><br><br>
+                                <u style="font-weight: bold;">${info.guru}</u><br>NIP. ${info.nip}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                `);
+            });
+
+            // Show Preview Modal
+            toggleModal('modal-preview', true);
+        }
+
+        function downloadPDF() {
+            const element = document.getElementById('content-to-print');
+            const info = appData.info;
+            
+            // Show Loading
+            Swal.fire({ title: 'Mencetak PDF...', text: 'Sedang memproses halaman...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+            const opt = {
+                margin: 0,
+                filename: `Perangkat_${info.mapel}_${info.kelas}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                pagebreak: { mode: ['css', 'legacy'] }
+            };
+
+            html2pdf().set(opt).from(element).save().then(() => {
+                Swal.close();
+                Swal.fire('Berhasil!', 'PDF telah diunduh.', 'success');
+            });
+        }
+    </script>
+</body>
+</html>
